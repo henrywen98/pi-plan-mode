@@ -1,0 +1,39 @@
+Pi Plan Mode
+Copyright 2026 Henry Wen
+
+This is an independent implementation. No upstream implementation files are vendored.
+The following projects informed the workflow and API design:
+
+OpenAI Codex (Apache-2.0), commit e54a5713caf331f42a6eef0166186df5f7563c29
+https://github.com/openai/codex
+Reference: conversational planning, review before execution, and fresh-context handoff.
+
+OpenCode (MIT), commit ed0171f08ac4018ae648fcca7315b3d717989d50
+https://github.com/anomalyco/opencode
+Reference: mode state separate from conversation context and restoration after compaction.
+
+@narumitw/pi-plan-mode 0.60.0 (MIT; Copyright 2026 narumiruna)
+https://github.com/narumiruna/pi-extensions/tree/main/packages/pi-plan-mode
+Reference: explicit completion, stale-work checks, and replacement-session API use.
+
+@nredd/pi-plan-mode 0.59.3-nredd.3 (MIT)
+https://github.com/nredd/pi-harness/tree/main/packages/plan-mode
+Reference: distinction between plan submission, approval, and cancellation.
+
+@hank-warren/pi-plan-mode 1.8.2 (MIT; upstream narumiruna, fork Hank Warren)
+https://github.com/hank-warren/pi-extensions/tree/main/packages/pi-plan-mode
+Reference: narrow edit/write interception and file-based handoff.
+This implementation does not share a mutable draft between planning and execution.
+
+Claude Code official documentation, consulted 2026-11-09
+https://code.claude.com/docs/en/permission-modes
+https://code.claude.com/docs/en/settings-reference#plansdirectory
+Reference: separate plan files and optional fresh-context execution.
+
+GitHub Spec Kit (MIT), documentation consulted 2026-11-09
+https://github.com/github/spec-kit/blob/main/templates/spec-template.md
+Reference: observable acceptance scenarios. No template text was copied.
+
+Pi SDK and extension examples (MIT), version 1.5.0
+https://github.com/earendil-works/pi
+Host dependencies retain their own licenses. They are not bundled with this package.

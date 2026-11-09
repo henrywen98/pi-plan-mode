@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+artifacts/
+.local/
+.env*
+*.log
+*.jsonl
+*.tgz
+.pi/
+.claude/
+plans/
+__pycache__/
