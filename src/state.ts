@@ -22,6 +22,7 @@ export interface PlanState {
   approved?: PlanRef;
   shown?: string;
   pendingRuntime?: RuntimeChoice;
+  pendingKickoff?: string;
   handoffError?: string;
 }
 export const emptyState = (): PlanState => ({ version: 1, mode: "off" });
@@ -41,5 +42,8 @@ export function restoreState(entries: readonly unknown[]): PlanState {
     }
   }
   if (s.mode === "ready" && !s.proposal) throw new Error("Ready state has no plan.");
+  if (s.pendingKickoff !== undefined && (typeof s.pendingKickoff !== "string" || !/^[a-f0-9]{64}$/.test(s.pendingKickoff) || s.mode !== "ready" || !s.approved)) {
+    throw new Error("Invalid pending kickoff.");
+  }
   return structuredClone(s);
 }

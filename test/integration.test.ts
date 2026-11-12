@@ -57,7 +57,7 @@ test("submit, cancel, feedback and resubmit; no accidental approval or repeated 
     assert.ok(h.notices.some(n => /没有可审批/.test(n.message)));
     await submit(h);
     assert.equal(h.menus.length, 2);
-    assert.notEqual(h.state().proposal!.path, path);
+    assert.equal(h.state().proposal!.path, path, "Revisions reuse the current plan file.");
     await h.prompt("/plan exit");
     assert.equal(await readFile(path, "utf8"), sample);
   } finally { await h.close(); }
@@ -78,6 +78,32 @@ test("same-session approval executes a frozen plan; later draft changes do not a
     assert.equal(await readFile(join(h.cwd, "result.txt"), "utf8"), "OK");
     assert.equal(h.session.model?.id, "scripted");
     assert.equal(h.session.thinkingLevel, "medium");
+  } finally { await h.close(); }
+});
+
+test("rejected kickoff can be explicitly approved again after reload", async () => {
+  const h = await harness();
+  try {
+    await h.prompt("/plan start"); await submit(h);
+    const count = h.requests.length;
+    const send = h.session.sendUserMessage.bind(h.session);
+    h.session.sendUserMessage = async () => { throw new Error("Injected asynchronous kickoff rejection"); };
+    h.confirm(true); await h.prompt("/plan implement");
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.requests.length, count);
+    assert.equal(h.state().mode, "ready", "Failed kickoff must remain reviewable.");
+    h.session.sendUserMessage = send;
+    const menus = h.menus.length;
+    await h.session.reload();
+    assert.equal(h.requests.length, count, "Reload must not retry automatically.");
+    assert.equal(h.menus.length, menus, "Reload must not reopen an old menu.");
+    h.confirm(false); await h.prompt("/plan implement");
+    assert.equal(h.requests.length, count, "Retry still requires approval.");
+    h.confirm(true);
+    h.frames.push([call("write", { path: join(h.cwd, "retry.txt"), content: "OK" })], [text("Retry complete.")]);
+    await h.prompt("/plan implement"); await h.session.waitForIdle();
+    assert.equal(await readFile(join(h.cwd, "retry.txt"), "utf8"), "OK");
+    assert.equal(h.state().mode, "off");
   } finally { await h.close(); }
 });
 
@@ -220,6 +246,31 @@ test("runtime mismatch after replacement stops kickoff", async () => {
     h.confirm(true); await h.prompt("/plan fresh");
     assert.equal(h.requests.length, count);
     assert.ok(h.notices.some(n => /环境未保持一致/.test(n.message)));
+  } finally { await h.close(); }
+});
+
+test("source session can retry after a fresh-session runtime mismatch", async () => {
+  let mismatch = true;
+  const h = await harness([pi => { pi.on("session_start", (_event, ctx) => {
+    if (mismatch && ctx.sessionManager.getHeader()?.parentSession) pi.setThinkingLevel("low");
+  }); }]);
+  try {
+    await h.prompt("/plan start"); await submit(h);
+    const source = h.session.sessionFile!;
+    const count = h.requests.length;
+    h.confirm(true); await h.prompt("/plan fresh");
+    assert.equal(h.requests.length, count, "The mismatched session must not execute.");
+    const menus = h.menus.length;
+    await h.runtime.switchSession(source);
+    assert.equal(h.state().mode, "ready", "The source must retain its reviewable proposal.");
+    assert.equal(h.requests.length, count);
+    assert.equal(h.menus.length, menus, "Returning must not reopen approval automatically.");
+    mismatch = false;
+    h.frames.push([call("write", { path: join(h.cwd, "fresh-retry.txt"), content: "OK" })], [text("Fresh retry complete.")]);
+    await h.prompt("/plan fresh");
+    assert.equal(await readFile(join(h.cwd, "fresh-retry.txt"), "utf8"), "OK");
+    assert.equal(h.session.sessionManager.getHeader()?.parentSession, source);
+    assert.equal(h.state().mode, "off");
   } finally { await h.close(); }
 });
 

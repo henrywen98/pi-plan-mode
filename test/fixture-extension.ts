@@ -1,6 +1,8 @@
 // Offline test driver. It produces fixed events; it never calls a model or a network API.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import { appendFileSync, existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const plan = `# 离线测试计划
 
@@ -20,10 +22,48 @@ const plan = `# 离线测试计划
 交付 result.txt 和验证结果。范围或验收标准变化时先暂停确认。
 `;
 export default function fixture(pi: ExtensionAPI) {
+  let blockKickoff = false;
+  let currentPlan: string | undefined;
+  let tracePath: string | undefined;
+  let traceSession: string | undefined;
+  pi.on("context", (_event, ctx) => {
+    const entry: any = ctx.sessionManager.getBranch().findLast((e: any) => e.type === "custom" && e.customType === "review-plan-state-v1");
+    currentPlan = entry?.data?.proposal?.path;
+  });
+  pi.registerCommand("fixture-block-kickoff", { description: "Offline test only", handler: async (_args, ctx) => {
+    blockKickoff = true;
+    ctx.ui.notify("OFFLINE_KICKOFF_BLOCK_ARMED", "info");
+  } });
+  pi.on("input", (event, ctx) => {
+    if (blockKickoff && event.source === "extension" && event.text.startsWith("规划已结束")) {
+      blockKickoff = false;
+      ctx.ui.notify("OFFLINE_KICKOFF_BLOCKED", "info");
+      return { action: "handled" };
+    }
+  });
+  pi.registerCommand("fixture-mismatch", { description: "Offline test only", handler: async (_args, ctx) => {
+    writeFileSync(join(ctx.cwd, ".fixture-mismatch"), "once");
+    ctx.ui.notify("OFFLINE_MISMATCH_ARMED", "info");
+  } });
+  pi.on("session_start", (_event, ctx) => {
+    tracePath = join(ctx.cwd, ".fixture-requests.jsonl");
+    traceSession = ctx.sessionManager.getSessionId();
+    writeFileSync(join(ctx.cwd, ".fixture-session-id"), ctx.sessionManager.getSessionId());
+    const flag = join(ctx.cwd, ".fixture-mismatch");
+    if (ctx.sessionManager.getHeader()?.parentSession && existsSync(flag)) {
+      unlinkSync(flag);
+      pi.setThinkingLevel("low");
+    }
+  });
+  pi.registerCommand("fixture-return", { description: "Offline test only", handler: async (_args, ctx) => {
+    const parent = ctx.sessionManager.getHeader()?.parentSession;
+    if (parent) await ctx.switchSession(parent);
+  } });
   pi.registerProvider("fixture", {
     api: "openai-completions", baseUrl: "http://127.0.0.1:1", apiKey: "offline-fixture",
     models: [{ id: "scripted", name: "Offline scripted fixture", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 }],
     streamSimple(model: any, context: any) {
+      if (tracePath) appendFileSync(tracePath, JSON.stringify({ session: traceSession, messages: context.messages }) + "\n");
       const asText = (m: any) => typeof m?.content === "string" ? m.content : m?.content?.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n") ?? "";
       const last = context.messages.findLast((m: any) => !asText(m).includes("[PLAN MODE —"));
       const user = context.messages.findLast((m: any) => m.role === "user" && !asText(m).includes("[PLAN MODE —"));
@@ -31,10 +71,16 @@ export default function fixture(pi: ExtensionAPI) {
       let content: any[];
       const tool = (name: string, args: unknown) => [{ type: "toolCall", name, arguments: args, id: `fixture_${Date.now()}` }];
       if (last?.role === "toolResult") {
-        if (last.toolName === "write" && !last.isError) content = tool("read", { path: "result.txt" });
+        if (last.toolName === "edit" && !last.isError && query.includes("inline-feedback")) content = tool("read", { path: currentPlan });
+        else if (last.toolName === "read" && !last.isError && query.includes("inline-feedback")) content = tool("plan_submit", {});
+        else if (last.toolName === "edit" && !last.isError && query.includes("reviseplan")) content = tool("plan_submit", {});
+        else if (last.toolName === "write" && !last.isError) content = tool("read", { path: "result.txt" });
         else content = [{ type: "text", text: query.startsWith("规划已结束") ? "EXECUTION_COMPLETE" : "QUESTION_COMPLETE" }];
       } else if (query.startsWith("规划已结束")) content = tool("write", { path: "result.txt", content: "OK" });
       else if (query.includes("show question")) content = tool("ask_user_question", { questions: [{ header: "Choice", question: "Which output should we use?", options: [{ label: "Alpha", description: "Use the first example." }, { label: "Beta", description: "Use the second example." }] }] });
+      else if (query.includes("inline-feedback") && currentPlan) content = tool("edit", { path: currentPlan, edits: [{ oldText: "文件内容必须是 OK。", newText: "文件内容必须是 OK，并保留逐项核对记录。" }] });
+      else if (query.includes("reviseplan") && currentPlan) content = tool("edit", { path: currentPlan, edits: [{ oldText: "# 离线测试计划", newText: "# 离线修订计划" }] });
+      else if (query.includes("submitfile")) content = tool("plan_submit", {});
       else if (query.includes("prepareplan")) content = tool("plan_submit", { plan });
       else content = [{ type: "text", text: "OFFLINE_READY" }];
       const output: any = { role: "assistant", content, provider: model.provider, model: model.id, api: model.api,

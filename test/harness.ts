@@ -42,6 +42,7 @@ export async function harness(extra: ExtensionFactory[] = []) {
   let select: (items: string[]) => Promise<string | undefined> = async () => undefined;
   let confirm: () => Promise<boolean> = async () => false;
   let cancelSwitch = false;
+  let reviewFeedback: string | undefined;
   const models = await ModelRuntime.create({ authPath: join(agentDir, "auth.json"), modelsPath: null, modelsStorePath: join(agentDir, "models-store.json"), refreshOnCreate: false, allowModelNetwork: false });
   models.registerProvider("fixture", { api: "openai-completions", apiKey: "offline-fixture", baseUrl: "http://127.0.0.1:1",
     models: ["scripted", "alternate"].map(id => ({ id, name: id, reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 })),
@@ -67,6 +68,15 @@ export async function harness(extra: ExtensionFactory[] = []) {
       if (options?.signal?.aborted) return undefined;
       return select(items);
     },
+    custom: async () => {
+      const items = ["当前会话执行", "清空上下文后执行", "继续修改"];
+      menus.push({ title: "批准这一版计划？Esc 仅关闭", items });
+      const choice = await select(items);
+      if (!choice) return undefined;
+      const feedback = reviewFeedback;
+      reviewFeedback = undefined;
+      return { action: ["here", "fresh", "revise"][items.indexOf(choice)], feedback };
+    },
     confirm: async () => confirm(), notify: (message: string, type: string) => notices.push({ message, type }),
     setStatus: () => {}, theme: { fg: (_: string, value: string) => value },
   }, { get(target, key) { return (target as any)[key] ?? (() => undefined); } });
@@ -81,6 +91,10 @@ export async function harness(extra: ExtensionFactory[] = []) {
     get session() { return runtime.session; },
     state: () => restoreState(runtime.session.sessionManager.getBranch()),
     choose: (value?: string | ((items: string[]) => Promise<string | undefined>)) => { select = typeof value === "function" ? value : async () => value; },
+    revise: (feedback?: string) => {
+      reviewFeedback = feedback;
+      select = async items => { select = async () => undefined; return items[2]; };
+    },
     confirm: (value: boolean) => { confirm = async () => value; },
     cancelSwitch: (value: boolean) => { cancelSwitch = value; },
     prompt: (message: string) => runtime.session.prompt(message),
