@@ -4,9 +4,10 @@
 
 English | [简体中文](./README.zh-CN.md)
 
+[![npm](https://img.shields.io/npm/v/@henrywen98/pi-plan-mode)](https://www.npmjs.com/package/@henrywen98/pi-plan-mode)
+[![Pi Catalog](https://img.shields.io/badge/Pi_Catalog-pi--plan--mode-blue)](https://pi.dev/packages/@henrywen98/pi-plan-mode)
 [![Pi Version](https://img.shields.io/badge/Pi-%3E%3D1.5.0-blue)](https://pi.dev)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](./LICENSE)
-[![Release](https://img.shields.io/badge/release-0.2.0-orange.svg)](./CHANGELOG.md)
 
 `pi-plan-mode` adds an acceptance-first `/plan` workflow to [Pi](https://github.com/earendil-works/pi). It helps you align on goals, verification criteria, and assumptions before the agent changes your files. It works for code, documentation, research, and operations tasks.
 
@@ -63,15 +64,16 @@ flowchart LR
 
 Requires **Pi 1.5.0 or newer**. The SDK baseline is `1.5.0`, and terminal menus are verified on `1.5.0` and `1.5.2`.
 
-Install from GitHub:
+Install from npm:
+
+```sh
+pi install npm:@henrywen98/pi-plan-mode
+```
+
+Or install from GitHub or a local clone:
 
 ```sh
 pi install git:github.com/henrywen98/pi-plan-mode
-```
-
-Or install from a local clone:
-
-```sh
 pi install /absolute/path/to/pi-plan-mode
 ```
 
@@ -183,8 +185,9 @@ npm run test:e2e
 Remove the package using the same source you used to install it:
 
 ```sh
+pi remove npm:@henrywen98/pi-plan-mode
+# Or for a GitHub or local install:
 pi remove git:github.com/henrywen98/pi-plan-mode
-# Or for a local install:
 pi remove /absolute/path/to/pi-plan-mode
 ```
 

@@ -4,9 +4,10 @@
 
 [English](./README.md) | 简体中文
 
+[![npm](https://img.shields.io/npm/v/@henrywen98/pi-plan-mode)](https://www.npmjs.com/package/@henrywen98/pi-plan-mode)
+[![Pi Catalog](https://img.shields.io/badge/Pi_Catalog-pi--plan--mode-blue)](https://pi.dev/packages/@henrywen98/pi-plan-mode)
 [![Pi Version](https://img.shields.io/badge/Pi-%3E%3D1.5.0-blue)](https://pi.dev)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](./LICENSE)
-[![Release](https://img.shields.io/badge/release-0.2.0-orange.svg)](./CHANGELOG.md)
 
 `pi-plan-mode` 为 [Pi](https://github.com/earendil-works/pi) 提供以验收标准为先的 `/plan` 规划与审批流程。模型改动业务文件前，你可以先确认目标、验收标准和关键假设。计划正文自动跟随你的对话语言（中文或英文）。
 
@@ -58,15 +59,16 @@ flowchart LR
 
 需要 Pi 1.5.0 或更高版本。SDK 回归基线是 1.5.0，终端交互已在 1.5.0 和 1.5.2 验证，其他版本不作兼容保证。
 
-从有权限访问的 GitHub 仓库安装：
+从 npm 安装（推荐）：
+
+```sh
+pi install npm:@henrywen98/pi-plan-mode
+```
+
+也可以从 GitHub 仓库或本地克隆安装：
 
 ```sh
 pi install git:github.com/henrywen98/pi-plan-mode
-```
-
-也可以安装本地克隆：
-
-```sh
 pi install /absolute/path/to/pi-plan-mode
 ```
 
@@ -191,8 +193,10 @@ npm run test:e2e
 使用安装时的相同来源：
 
 ```sh
+pi remove npm:@henrywen98/pi-plan-mode
+# GitHub 或本地安装则用：
 pi remove git:github.com/henrywen98/pi-plan-mode
-# 本地安装则用：pi remove /absolute/path/to/pi-plan-mode
+pi remove /absolute/path/to/pi-plan-mode
 ```
 
 随后执行 `/reload`。计划文件保留，其他配置不变。
