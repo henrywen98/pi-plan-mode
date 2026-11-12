@@ -40,8 +40,8 @@ for (const [name, source] of complete) {
     assert.equal(result[0], f.messages[0]); assert.equal(result[1], f.messages[1]);
     assert.equal(JSON.stringify(f.messages), original); assert.equal(JSON.stringify(f.sm.getBranch()), raw);
     assert.equal(project(f, result), result, "Projection is idempotent.");
-    assert.match(userText(result.at(-1)!)!, /不要跟随草稿后续修改/);
-    assert.match(userText(result.at(-1)!)!, /范围、验收标准或关键假设变化时先暂停确认/);
+    assert.match(userText(result.at(-1)!)!, /Do not follow later draft edits/);
+    assert.match(userText(result.at(-1)!)!, /pause and confirm first if scope, acceptance criteria, or key assumptions change/);
   });
 }
 

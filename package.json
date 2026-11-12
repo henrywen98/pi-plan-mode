@@ -1,22 +1,33 @@
 {
   "name": "@henrywen98/pi-plan-mode",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
-  "description": "Review an acceptance-first plan, then approve execution in Pi.",
+  "description": "Acceptance-first /plan workflow for Pi: single editable draft, immutable approval snapshots, inline review feedback, and deduplicated session handoff.",
   "license": "Apache-2.0",
+  "author": "Henry Wen",
+  "homepage": "https://github.com/henrywen98/pi-plan-mode#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/henrywen98/pi-plan-mode.git"
+    "url": "git+https://github.com/henrywen98/pi-plan-mode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/henrywen98/pi-plan-mode/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "pi-extension",
     "plan-mode"
   ],
   "files": [
     "index.ts",
     "src",
     "README.md",
+    "README.zh-CN.md",
     "NOTICE",
     "LICENSE",
     "CHANGELOG.md"

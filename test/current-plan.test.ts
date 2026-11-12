@@ -180,8 +180,8 @@ for (const destination of ["implement", "fresh"]) {
       await h.prompt(`/plan ${destination}`); await executed(h, result);
       const messages = h.session.messages.filter((m: any) => m.role === "user");
       const request = JSON.stringify(messages.at(-1));
-      assert.doesNotMatch(request, /先读取批准文件/);
-      assert.match(request, /无需.*重复读取/);
+      assert.doesNotMatch(request, /first read the approved/i);
+      assert.match(request, /without re-reading the plan file/);
       const user: any = messages.at(-1);
       const body = typeof user.content === "string" ? user.content : user.content.map((c: any) => c.text ?? "").join("");
       assert.equal(body.split(sample).length - 1, 1);
@@ -211,9 +211,9 @@ test("current plan: reviewing a manual edit keeps the fresh source retryable", a
 test("current plan: prompt permits incremental updates and handoff does not demand file hashing", () => {
   const prompt = planPrompt(true, "/plans/plan-current.draft.md");
   assert.match(prompt, /plan-current\.draft\.md/);
-  assert.match(prompt, /修改.*当前|当前.*修改/);
+  assert.match(prompt, /Revise this single current plan/);
   assert.match(prompt, /plan_submit\(\{\}\)/);
   const body = kickoff({ id: "test", path: "/plans/plan-test.approved.md", title: "Plan", hash: digest(sample) }, sample);
-  assert.doesNotMatch(body, /先读取批准文件/);
-  assert.match(body, /无需.*重复读取/);
+  assert.doesNotMatch(body, /first read the approved/i);
+  assert.match(body, /without re-reading the plan file/);
 });

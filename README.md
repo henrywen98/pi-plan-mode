@@ -1,102 +1,161 @@
 # Pi Plan Mode
 
-先审目标和验收标准，再批准执行。支持代码、文档、调研及其他任务。
+**Review goals and acceptance criteria before Pi executes your task.**
 
-## 安装
+English | [简体中文](./README.zh-CN.md)
 
-需要 Pi 1.5.0 或更高版本。SDK 回归基线是 1.5.0，终端交互已在 1.5.0 和 1.5.2 验证，其他版本不作兼容保证。
+[![Pi Version](https://img.shields.io/badge/Pi-%3E%3D1.5.0-blue)](https://pi.dev)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](./LICENSE)
+[![Release](https://img.shields.io/badge/release-0.2.0-orange.svg)](./CHANGELOG.md)
 
-从有权限访问的 GitHub 仓库安装：
+`pi-plan-mode` adds an acceptance-first `/plan` workflow to [Pi](https://github.com/earendil-works/pi). It helps you align on goals, verification criteria, and assumptions before the agent changes your files. It works for code, documentation, research, and operations tasks.
+
+```text
+────────────────────────────────────────────────────────────────────
+Approve this plan? Esc closes
+
+→ Execute in current session
+  Execute in fresh session
+  Revise: Type revision notes, or press Enter
+
+↑↓ select · enter confirm · type to revise · esc close
+────────────────────────────────────────────────────────────────────
+```
+
+---
+
+## Why This Extension Exists
+
+Pi skips built-in plan mode by default so users can install a workflow that fits their habits. Existing Pi plan packages focus on code-only planning, complex Bash allowlists, or shared mutable plan files.
+
+`pi-plan-mode` takes a smaller and stricter path:
+
+| Design Choice | What `pi-plan-mode` Does | Why It Matters |
+| --- | --- | --- |
+| **Acceptance-first format** | Uses a 5-section plan covering goals, acceptance criteria, execution, assumptions, and deliverables. | You review what success looks like, not only a list of files to edit. |
+| **One draft, immutable approvals** | Updates one `.draft.md` file during planning, and saves a separate `.approved.md` snapshot upon approval. | Hand edits or later draft changes never alter an approved execution version. |
+| **Inline review feedback** | Lets you type revision notes directly inside the approval menu. Unsent text disables approval buttons. | You cannot accidentally approve an old plan while typing feedback. |
+| **No duplicate context on handoff** | Sends full plan text only when the current session context does not already contain those exact bytes. | Same-session execution does not waste tokens loading the same plan twice. |
+| **Minimal tool boundary** | Blocks only `edit` and `write` outside the current draft, including nested calls inside `codemode`. | Your existing Bash, MCP, web, and permission extensions keep working without conflict. |
+
+---
+
+## How It Works
+
+```mermaid
+flowchart LR
+    Start["/plan or Alt+P"] --> Draft["Inspect context & update one .draft.md"]
+    Draft --> Submit["Call plan_submit"]
+    Submit --> Review["One-time TUI review menu"]
+    Review -->|Type feedback / Revise| Draft
+    Review -->|Execute here| Here["Lock .approved.md & run in current session"]
+    Review -->|Execute fresh| Fresh["Lock .approved.md & run in linked fresh session"]
+```
+
+1. **Enter planning:** Run `/plan <task>`, `/plan start`, or press `Alt+P`.
+2. **Explore and clarify:** The agent inspects the workspace and uses `ask_user_question` when available. `edit` and `write` can only modify the current draft file.
+3. **Submit for review:** The agent writes or edits one `.draft.md` file and calls `plan_submit` as its final action.
+4. **Review and decide:** After the turn settles, Pi opens the approval menu once. Choose current-session execution, fresh-session execution, or inline revision.
+
+---
+
+## Install
+
+Requires **Pi 1.5.0 or newer**. The SDK baseline is `1.5.0`, and terminal menus are verified on `1.5.0` and `1.5.2`.
+
+Install from GitHub:
 
 ```sh
 pi install git:github.com/henrywen98/pi-plan-mode
 ```
 
-也可以安装本地克隆：
+Or install from a local clone:
 
 ```sh
 pi install /absolute/path/to/pi-plan-mode
 ```
 
-在 Pi 中执行 `/reload`，或重新启动 Pi。不要同时加载另一个占用 `/plan` 或 `plan_submit` 的插件。
+Run `/reload` in Pi, or restart Pi. Do not load another extension that registers `/plan` or `plan_submit` at the same time.
 
-## 使用
+---
+
+## Usage
 
 ```text
-/plan start            进入规划，不发送模型请求
-/plan 先规划这个任务   进入规划并发送任务
-/plan                  打开当前状态对应的菜单
-/plan show             查看当前或保留的计划
-/plan implement        展示计划，再确认原会话执行
-/plan fresh            展示计划，再确认关联新会话执行
-/plan export plan.md   导出，不覆盖现有文件
-/plan exit             退出规划，保留文件，不执行
+/plan start            Enter plan mode without sending a model request
+/plan <task>           Enter plan mode and send the task prompt
+/plan                  Open the menu for the current state
+/plan show             Display the current draft or retained approved plan
+/plan implement        Show the plan and confirm execution in the current session
+/plan fresh            Show the plan and confirm execution in a linked fresh session
+/plan export plan.md   Export the plan without overwriting existing files
+/plan exit             Leave plan mode, keep plan files, and do not execute
 ```
 
-模型提交完整计划后，插件等待本轮结束，再弹一次审批菜单：
+### Approval Menu Actions
 
-- **当前会话执行**：保留调查聊天，按批准版本执行。
-- **清空上下文后执行**：新建关联会话，只转交批准计划；旧会话仍可恢复。
-- **继续修改**：选中后可在同一行输入修改要求。空着按回车仅返回聊天；有内容时按回车发送要求，模型修改同一份当前计划，再提交文件审阅。
+When the model submits a complete plan and the turn ends, the extension opens the review menu once:
 
-终端菜单内直接打字也会转到修改要求输入框。有未发送文字时，不会批准旧计划；先发送或清空文字，才能选择执行。Esc 或 Ctrl+C 关闭菜单并放弃未发送文字。单行输入会把粘贴内容中的换行换成空格；需要保留多行格式时，可空着回车后在聊天框输入。RPC 仍使用原有选择菜单。
+- **Execute in current session:** Keeps your exploration chat and executes the approved snapshot.
+- **Execute in fresh session:** Creates a linked session and transfers only the approved plan. You can still resume the original session.
+- **Revise:** Type revision notes on the same line and press Enter to send them. Press Enter on an empty line to return to chat.
 
-聊天中的“可以”不是批准。提交后继续发消息讨论，会暂时停用旧版审批入口。
+Start typing anywhere in the terminal menu to jump straight to the revision input. When the input contains unsent text, the menu disables execution options so you do not approve an outdated plan. Press `Esc` or `Ctrl+C` to close the menu and discard unsent text.
 
-新会话保持当前模型、思考级别和工作目录。它正常加载适用的项目规则。环境无法保持一致时，不启动执行。
+Single-line input replaces line breaks with spaces when you paste text. For multi-line feedback, press Enter on an empty revision line and type in the main chat box. RPC mode uses the standard selection dialog.
 
-批准原会话执行时，插件等对应执行回合启动后才退出规划。启动前交接失败时，计划仍可通过 `/plan implement` 或 `/plan fresh` 重新审阅和批准，不会自动重试。
+### Execution Safeguards
 
-新会话交接保留原会话的可审批计划，失败后可以返回重试；成功后也保留。返回原会话不会自动执行，再次批准表示再次发出执行请求。
+- Replying "OK" or "continue" in chat does not approve a plan. Sending a chat message after submission disables the previous approval entry until the agent submits again.
+- Fresh sessions keep the current model, thinking level, working directory, and project rules. If the new session cannot match the runtime environment, execution does not start.
+- For current-session execution, the extension leaves plan mode only after the execution turn actually starts. If handoff fails before start, run `/plan implement` or `/plan fresh` to review and approve again.
+- Fresh-session handoff keeps the plan reviewable in the parent session so you can retry if handoff fails.
 
-## 计划格式
+---
 
-计划使用 Markdown，先写能识别任务的标题，再按五节组织：
+## Five-Section Plan Format
 
-1. **目标与范围**：谁需要什么结果，本次做到哪里。
-2. **验收标准与验证**：预期结果、检查方法和证据。
-3. **执行方案**：按行为或阶段说明做法及依赖。
-4. **假设与停点**：重要未证实条件，以及不成立时怎么办。
-5. **交付物与参考**：产物、位置和接手所需材料。
+Plans use Markdown with a clear task title and five sections (written in the user's conversation language):
 
-这是写作要求，不是标题检测器。插件只校验提交状态、内容有效性和大小，不判断计划是否考虑周全。
+1. **Goals and Scope:** Who needs what outcome, and what is in or out of scope.
+2. **Acceptance Criteria and Verification:** Expected results, how to check them, and required evidence.
+3. **Execution Plan:** Actions, phases, and dependencies mapped to acceptance items.
+4. **Assumptions and Stop Conditions:** Unverified conditions and what to do if they fail.
+5. **Deliverables and References:** Output locations and materials needed for handoff.
 
-模型自行判断何时使用现有 `ask_user_question`。没有可用问卷时，在对话中提问。插件不注册第二套问卷。
+This structure guides the model's writing; the extension validates submission state, non-empty Markdown, and the 50,000-byte limit rather than enforcing heading names mechanically.
 
-执行方法可以调整。范围、验收标准或关键假设变化时，提示要求模型先暂停确认。无法验证的项目必须说明，不能自行降低完成标准。
+During execution, the agent may adjust its method. If scope, acceptance criteria, or key assumptions change, the handoff prompt instructs the agent to pause and confirm with you first.
 
-## 文件和恢复
+---
 
-计划存放在 Pi 用户目录的 `plans/`，通常是 `~/.pi/agent/plans/`。
+## Plan Files, Recovery, and Context Deduplication
 
-- 首次提交创建当前 `.draft.md` 文件。后续修订、退出后重新进入规划，都沿用它，不因一次反馈另建草稿。
-- 首次用 `plan_submit({plan: "完整 Markdown"})` 建立文件。之后可用 edit 修改片段，或用 write 完整改写，再用 `plan_submit({})` 提交当前文件审阅；也兼容用 plan 参数替换同一文件的全文。
-- 同一任务继续修改原文。明确换了任务时，改写当前文件并清理旧任务内容。查看和导出始终优先当前草稿，不因退出规划切回旧批准记录。
-- 可以手工编辑草稿。审批重新读取文件；审阅后内容变化会取消本次批准。
-- 批准创建独立 `.approved.md` 快照，仅用于固定执行版本和恢复，不是另一份需要维护的计划。后续修改草稿不改变执行版本。
-- 退出、恢复、重载和切换会话不会自动删除文件或启动执行。旧版本创建的文件不会被批量迁移或删除，继续使用状态中记录的当前草稿。
-- 状态属于当前历史分支，但切换历史不会回滚磁盘上的草稿。若草稿与恢复节点记录的内容不一致，旧审批会停用；检查当前文件并重新提交后才能审批。切换分支也会关闭旧菜单。
-- 没有定时清理。请在不再需要恢复这些计划时手动清理文件。
+Plan files live in `<agent-dir>/plans/` (usually `~/.pi/agent/plans/`).
 
-原始会话记录保留完整批准正文。实际发送给模型前，插件检查前文是否已有字节一致的完整批准稿：已有时，交接只保留执行授权、版本和约束；没有或无法确定时，保留一次全文。新会话没有旧正文，因此保留全文。摘要、路径、旧稿加修改片段不算完整批准稿。
+- **Single mutable draft:** The first `plan_submit({ plan: "..." })` creates a `.draft.md` file. Later revisions use `edit` or `write` on that same file and call `plan_submit({})`.
+- **Manual edits supported:** You can edit the `.draft.md` file in your own editor. Approval re-reads the file from disk and cancels approval if the file changed after display.
+- **Immutable approved snapshot:** Approval creates a separate `.approved.md` file with a SHA-256 digest. Later draft edits do not change the approved execution snapshot.
+- **Branch-aware state:** Plan state belongs to the current session branch. If the disk draft no longer matches the branch record after a session switch or tree move, old approvals are disabled until you re-submit.
+- **Smart handoff projection:** Raw session history keeps the full approved plan. When the exact approved plan already appears earlier in context, the extension sends only a short authorization header. Fresh sessions have no prior context and receive the full plan once.
 
-只精简插件自己记录的交接消息，不删除历史，不改其他用户消息或工具结果。用户重复粘贴、旧交接缺少来源记录、格式未知等情况不做省略。因此原始 HTML 导出仍可能有完整交接稿；它不等同于实际模型输入。每次请求重新检查，不依赖“以前发过”的标记。
+The extension never deletes plan files automatically. Clean up old files in `~/.pi/agent/plans/` when you no longer need them.
 
-不要求模型立即重读计划或计算哈希。批准快照路径和摘要值只作恢复信息：压缩等原因使正文不在上下文时，才按需读取。交接本身也被压缩移除后，不自动把旧批准稿注入所有未来请求。项目规则和事实来源仍按需读取。插件不持续安排或自动重试工作。
+---
 
-此处理在普通 context 过滤之后运行。若其他扩展随后删改计划正文，需要重新验证实际模型输入，不能仅凭界面或历史记录判断兼容。
+## Tool Boundaries
 
-## 工具边界
+While plan mode is active, `edit` and `write` can only modify the current `.draft.md` file. This check also applies to nested tool calls inside `codemode`. Symbolic links and hard links cannot bypass this check. Before the first submission creates a draft, all `edit` and `write` calls are blocked.
 
-规划时，精确工具名 `edit` 和 `write` 只允许修改当前草稿，包括 codemode 的嵌套调用。批准快照、其他草稿和业务文件不在例外范围内；符号链接或硬链接也不能借当前草稿路径修改其他文件。首次提交前尚无草稿，edit/write 均被拦截。
+`codemode`, `bash`, web tools, MCP tools, and subagents keep their existing permissions. This extension is a workflow gate, not an operating-system sandbox.
 
-`codemode`、Bash、网页、MCP 和子代理不增加限制。插件不改变原有工具列表，也不覆盖原有权限。
+Press `Alt+P` to toggle plan mode. Exiting plan mode does not approve execution.
 
-这不是只读沙箱。其他工具仍可能写入；不要通过这些工具提前实施。批准计划也不解除工作区已有规则。
+---
 
-`Alt+P` 切换规划模式；退出不等于批准执行。插件只发布自己的 footer 状态，不替换 footer，不修改模型默认配置。
+## Verification and Testing
 
-## 验证
+Run the test suite locally without model API calls:
 
 ```sh
 npm ci --ignore-scripts
@@ -105,12 +164,11 @@ npm test
 npm run test:e2e
 ```
 
-- 单元测试检查文件、输入边界和分支状态。
-- SDK 集成测试使用真实 Pi、原生 codemode 和本地模拟工具。
-- 终端测试通过 PTY 操作真实 Pi 菜单，覆盖取消、原会话执行、新会话执行和重载。
-- 测试提供确定性响应，不连接模型服务。
+- **Unit tests (`npm test`):** Verify file safety, input boundaries, handoff deduplication, and branch state.
+- **SDK integration tests:** Run against real Pi and native `codemode` with deterministic local tools.
+- **Terminal E2E tests (`npm run test:e2e`):** Drive the real Pi TUI menu through a PTY (requires Linux or macOS, Python 3, and Node.js).
 
-终端测试需要 Linux/macOS、Python 3 和 Node.js。要回归已经安装的问答或 footer 扩展，传入路径：
+To test compatibility with your installed question or footer extensions:
 
 ```sh
 PLAN_TEST_ASK_EXTENSION=/path/to/question/index.ts \
@@ -118,23 +176,24 @@ PLAN_TEST_FOOTER_EXTENSION=/path/to/footer/index.ts \
 npm run test:e2e
 ```
 
-`PLAN_TEST_ARTIFACT_DIR` 可指定本地终端记录目录。`PLAN_TEST_CLI` 可指定另一份 Pi 的 `dist/cli.js`，用于跨宿主版本测试。实际会话、生成计划和验收报告不得提交。
+---
 
-非交互模式可正常使用其他工具，也可以显式进入规划；本版本不支持非交互审批。
+## Uninstall
 
-## 卸载
-
-使用安装时的相同来源：
+Remove the package using the same source you used to install it:
 
 ```sh
 pi remove git:github.com/henrywen98/pi-plan-mode
-# 本地安装则用：pi remove /absolute/path/to/pi-plan-mode
+# Or for a local install:
+pi remove /absolute/path/to/pi-plan-mode
 ```
 
-随后执行 `/reload`。计划文件保留，其他配置不变。
+Then run `/reload` in Pi. Existing plan files in `~/.pi/agent/plans/` are preserved.
 
-## 来源与许可证
+---
 
-独立实现，采用 Apache-2.0。流程参考 Codex、OpenCode、Claude Code 及现有 Pi 规划插件。
+## Credits and License
 
-参考版本和具体借鉴范围见 [NOTICE](NOTICE)。没有打包上游实现源码。
+Independent implementation licensed under [Apache-2.0](./LICENSE).
+
+Workflow design informed by OpenAI Codex, OpenCode, Claude Code, GitHub Spec Kit, and existing Pi plan-mode extensions (`@narumitw/pi-plan-mode`, `@nredd/pi-plan-mode`, and `@hank-warren/pi-plan-mode`). See [NOTICE](./NOTICE) for reference versions and scope. No upstream source files are bundled.

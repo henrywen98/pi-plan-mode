@@ -35,7 +35,7 @@ for (const scenario of ["full", "edit-only", "edit-read", "manual", "compacted",
   test(`handoff context: ${scenario} keeps the exact approved body once`, async () => {
     const h = await harness(scenario === "filtered" ? [pi => {
       pi.on("context", event => {
-        const index = event.messages.findIndex(m => m.role === "user" && messageText(m).startsWith("规划已结束"));
+        const index = event.messages.findIndex(m => m.role === "user" && messageText(m).startsWith("Plan mode has ended."));
         if (index >= 0) return { messages: event.messages.slice(index) };
       });
     }] : []);
@@ -58,8 +58,8 @@ for (const scenario of ["full", "edit-only", "edit-read", "manual", "compacted",
       const request = await approve(h, scenario === "fresh" ? "fresh" : "implement");
       assert.equal(copies(request.messages, body), 1);
       const authorization = messageText(lastUser(request.messages));
-      assert.match(authorization, /范围、验收标准或关键假设变化时先暂停确认/);
-      assert.match(authorization, /验证做不到就标为未验证/);
+      assert.match(authorization, /pause and confirm first if scope, acceptance criteria, or key assumptions change/);
+      assert.match(authorization, /Mark anything you cannot verify as unverified/);
       assert.ok(authorization.includes(h.state().approved!.hash));
       assert.ok(authorization.includes(h.state().approved!.path));
       assert.equal(await readFile(h.state().approved!.path, "utf8"), body);
@@ -88,7 +88,7 @@ test("handoff context: reload and later compaction recheck actual request conten
     h.frames.push([text("Continued after compaction.")]); await h.prompt("Explain again.");
     const request = h.requests.at(-1);
     assert.equal(copies(request.messages, sample), 1);
-    const handoff = request.messages.find((m: any) => m.role === "user" && messageText(m).startsWith("规划已结束"));
+    const handoff = request.messages.find((m: any) => m.role === "user" && messageText(m).startsWith("Plan mode has ended."));
     assert.equal(messageText(handoff), kickoff(approved, sample), "Without the earlier copy, keep the full handoff.");
   } finally { await h.close(); }
 });
@@ -160,7 +160,7 @@ test("handoff context: changing the working draft after approval never changes t
   let draft = "";
   const h = await harness([pi => {
     pi.on("input", async event => {
-      if (event.source === "extension" && event.text.startsWith("规划已结束")) await writeFile(draft, revised);
+      if (event.source === "extension" && event.text.startsWith("Plan mode has ended.")) await writeFile(draft, revised);
     });
   }]);
   try {

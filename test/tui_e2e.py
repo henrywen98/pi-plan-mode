@@ -108,9 +108,9 @@ def checkpoint(name):
 try:
     wait("scripted")
     mark = command("/plan start")
-    wait("已进入规划", mark)
+    wait("Entered plan mode", mark)
     mark = command("prepareplan")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     checkpoint("ready-menu")
     send("\x1b")
     pump(0.6)
@@ -121,23 +121,23 @@ try:
     initial_draft = states()[-1]["proposal"]["path"]
     request_count = len((WORK / ".fixture-requests.jsonl").read_text().splitlines())
     mark = command("/plan")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     send("\x1b[B"); send("\x1b[B")
     pump(0.2)
     checkpoint("inline-feedback-empty")
     mark = send("\r")
-    wait("继续讨论并修改当前计划文件", mark)
+    wait("Continue discussing and editing the current plan file", mark)
     assert states()[-1]["mode"] == "planning"
     assert len((WORK / ".fixture-requests.jsonl").read_text().splitlines()) == request_count
     print("PASS: empty Enter on Continue editing returns to chat without a model request")
     mark = command("submitfile")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     send("\x1b[B"); send("\x1b[B")
     send("inline-feedback 补充逐项核对记录")
     pump(0.3)
     checkpoint("inline-feedback-input")
     mark = send("\r")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     pump(0.3)
     assert states()[-1]["mode"] == "ready"
     assert states()[-1]["proposal"]["path"] == initial_draft
@@ -146,7 +146,7 @@ try:
     feedback_messages = [block["text"] for _, rows in entries() for row in rows if row.get("type") == "message"
                          and row.get("message", {}).get("role") == "user"
                          for block in row["message"].get("content", []) if isinstance(block, dict)
-                         and block.get("type") == "text" and "修改要求：" in block["text"] and "inline-feedback" in block["text"]]
+                         and block.get("type") == "text" and "Revision notes:" in block["text"] and "inline-feedback" in block["text"]]
     assert len(feedback_messages) == 1
     print("PASS: inline Chinese feedback is sent once, revises the same draft, and returns to review without execution")
     request_count = len((WORK / ".fixture-requests.jsonl").read_text().splitlines())
@@ -162,7 +162,7 @@ try:
     mark = command("/fixture-block-kickoff")
     wait("OFFLINE_KICKOFF_BLOCK_ARMED", mark)
     mark = command("/plan")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     mark = send("\r")
     wait("OFFLINE_KICKOFF_BLOCKED", mark)
     assert states()[-1]["mode"] == "ready"
@@ -171,7 +171,7 @@ try:
     print("PASS: unstarted kickoff remains ready; no automatic execution")
 
     mark = command("/plan")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     mark = send("\r")
     wait("EXECUTION_COMPLETE", mark)
     assert (WORK / "result.txt").read_text() == "OK"
@@ -182,7 +182,7 @@ try:
     print("PASS: same-session approval runs write and verification")
 
     mark = command("/plan start")
-    wait("已进入规划", mark)
+    wait("Entered plan mode", mark)
     if os.environ.get("PLAN_TEST_ASK_EXTENSION"):
         mark = command("show question")
         wait("Which output should we use?", mark)
@@ -208,7 +208,7 @@ try:
         print("PASS: existing ask_user_question cancellation does not approve or exit")
 
     mark = command("reviseplan")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     send("\x1b")
     pump(0.3)
     assert states()[-1]["proposal"]["path"] == original_draft
@@ -218,19 +218,19 @@ try:
     assert len(list((AGENT / "plans").glob("*.draft.md"))) == 1
     print("PASS: real edit and empty submission reuse the current draft; approved A is unchanged")
     mark = send("\x1bp")
-    wait("已退出规划", mark)
+    wait("Exited plan mode", mark)
     assert states()[-1]["mode"] == "off"
     mark = command("/plan show")
     wait("离线修订计划", mark)
     mark = command("/plan export selected.md")
-    wait("已导出", mark)
+    wait("Exported plan:", mark)
     assert (WORK / "selected.md").read_text() == revised_body
     checkpoint("current-plan-after-exit")
     print("PASS: Alt+P exits without execution; show/export select current B instead of approved A")
     mark = command("/plan start")
-    wait("已进入规划", mark)
+    wait("Entered plan mode", mark)
     mark = command("submitfile")
-    wait("批准这一版计划", mark)
+    wait("Approve this plan?", mark)
     send("\x1b")
     pump(0.3)
     assert states()[-1]["proposal"]["path"] == original_draft
@@ -240,12 +240,12 @@ try:
     mark = command("/fixture-mismatch")
     wait("OFFLINE_MISMATCH_ARMED", mark)
     mark = command("/plan fresh")
-    wait("执行刚展示的计划", mark)
+    wait("Execute the displayed plan?", mark)
     mark = send("\r")
-    wait("环境未保持一致", mark)
+    wait("runtime settings did not match", mark)
     assert not (WORK / "result.txt").exists()
     mark = command("/fixture-return")
-    wait("计划待确认", mark)
+    wait("Plan ready", mark)
     source_states = [row["data"] for path, rows in entries() if path == source_path for row in rows
                      if row.get("type") == "custom" and row.get("customType") == "review-plan-state-v1"]
     assert source_states[-1]["mode"] == "ready"
@@ -253,7 +253,7 @@ try:
     checkpoint("source-ready-after-failure")
     print("PASS: rejected fresh handoff keeps source ready without auto retry")
     mark = command("/plan fresh")
-    wait("执行刚展示的计划", mark)
+    wait("Execute the displayed plan?", mark)
     mark = send("\r")
     wait("EXECUTION_COMPLETE", mark)
     assert (WORK / "result.txt").read_text() == "OK"
@@ -267,14 +267,14 @@ try:
     mark = command("/reload")
     pump(2)
     assert states()[-1]["mode"] == "off"
-    assert "批准这一版计划" not in plain(bytes(raw[mark:]))
+    assert "Approve this plan?" not in plain(bytes(raw[mark:]))
     print("PASS: reload does not reopen old approval or restart execution")
     handoffs = [block["text"] for _, rows in entries() for row in rows if row.get("type") == "message"
                 and row.get("message", {}).get("role") == "user"
                 for block in row["message"].get("content", [])
-                if isinstance(block, dict) and block.get("type") == "text" and block["text"].startswith("规划已结束")]
+                if isinstance(block, dict) and block.get("type") == "text" and block["text"].startswith("Plan mode has ended.")]
     assert len(handoffs) == 2
-    assert all("先读取批准文件" not in body and "无需重复读取" in body for body in handoffs)
+    assert all("first read the approved" not in body and "without re-reading the plan file" in body for body in handoffs)
     assert all(body.count("## 1. 目标与范围") == 1 for body in handoffs)
     print("PASS: both execution handoffs contain one plan body and no mandatory reread")
     def as_text(message):
@@ -298,14 +298,14 @@ try:
     for row in (WORK / ".fixture-requests.jsonl").read_text().splitlines():
         request = json.loads(row)
         users = [m for m in request["messages"] if m.get("role") == "user" and not as_text(m).startswith("[PLAN MODE —")]
-        if not users or not as_text(users[-1]).startswith("规划已结束"):
+        if not users or not as_text(users[-1]).startswith("Plan mode has ended."):
             continue
         authorization = as_text(users[-1])
-        path = re.search(r"从批准快照恢复：([^\n]+)", authorization).group(1)
+        path = re.search(r"remove the plan body: ([^\n]+)", authorization).group(1)
         body = Path(path).read_text()
         assert body_copies(request["messages"], body) == 1
         assert request["messages"][0]["role"] == "system"
-        assert "范围、验收标准或关键假设变化时先暂停确认" in authorization
+        assert "pause and confirm first if scope, acceptance criteria, or key assumptions change" in authorization
         executions.append({"session": request["session"], "path": path, "inline": body in authorization, "bodyCopies": 1})
     assert len(executions) == 6
     assert [e["inline"] for e in executions] == [False, False, False, True, True, True]

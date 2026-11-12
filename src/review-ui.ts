@@ -3,11 +3,11 @@ import { Input, truncateToWidth, visibleWidth, type Component, type Focusable, t
 
 export type ReviewDecision = { action: "here" | "fresh" | "revise"; feedback?: string };
 export const REVIEW_OPTIONS = [
-  { action: "here", label: "当前会话执行" },
-  { action: "fresh", label: "清空上下文后执行" },
-  { action: "revise", label: "继续修改" },
+  { action: "here", label: "Execute in current session" },
+  { action: "fresh", label: "Execute in fresh session" },
+  { action: "revise", label: "Revise" },
 ] as const;
-export const REVIEW_TITLE = "批准这一版计划？Esc 仅关闭";
+export const REVIEW_TITLE = "Approve this plan? Esc closes";
 const PASTE_START = "\x1b[200~", PASTE_END = "\x1b[201~";
 
 /** One interaction owns one input. Native Input handles editing, Unicode and cursor rendering. */
@@ -27,7 +27,7 @@ export class ReviewDialog implements Component, Focusable {
   constructor(theme: Pick<Theme, "fg">, keys: Pick<KeybindingsManager, "matches" | "getKeys">,
     done: (value: ReviewDecision | undefined) => void, requestRender: () => void, signal: AbortSignal) {
     this.theme = theme; this.keys = keys; this.done = done; this.requestRender = requestRender; this.signal = signal;
-    this.input = new Input({ prompt: "", placeholder: "直接输入修改要求；空着回车继续对话", placeholderStyle: s => this.theme.fg("dim", s) });
+    this.input = new Input({ prompt: "", placeholder: "Type revision notes, or press Enter to continue in chat", placeholderStyle: s => this.theme.fg("dim", s) });
     this.input.onSubmit = () => this.finish({ action: "revise", feedback: this.input.getValue() });
     this.input.onEscape = this.abort;
     signal.addEventListener("abort", this.abort, { once: true });
@@ -90,7 +90,7 @@ export class ReviewDialog implements Component, Focusable {
     const editing = !!this.input.getValue().trim();
     const lines = [this.theme.fg("border", "─".repeat(width)), this.theme.fg("accent", REVIEW_TITLE), ""];
     REVIEW_OPTIONS.forEach((option, i) => {
-      const prefix = `${i === this.selected ? "→ " : "  "}${option.label}${i === 2 ? "：" : ""}`;
+      const prefix = `${i === this.selected ? "→ " : "  "}${option.label}${i === 2 ? ": " : ""}`;
       if (i === 2 && this.selected === 2) {
         const label = this.theme.fg("accent", prefix);
         const available = width - visibleWidth(prefix);
@@ -98,13 +98,13 @@ export class ReviewDialog implements Component, Focusable {
         else lines.push(label, ...this.input.render(width));
       } else {
         lines.push(this.theme.fg(editing && i !== 2 ? "dim" : i === this.selected ? "accent" : "text",
-          prefix + (i === 2 ? "输入修改要求，或空着回车" : "")));
+          prefix + (i === 2 ? "Type revision notes, or press Enter" : "")));
       }
     });
     const enter = this.keys.getKeys("tui.select.confirm").join("/"), cancel = this.keys.getKeys("tui.select.cancel").join("/");
     lines.push("", this.theme.fg("dim", editing
-      ? `${enter} 发送修改要求 · 清空后可选执行 · ${cancel} 关闭，不发送`
-      : `↑↓ 选择 · ${enter} 确认 · 选中继续修改可直接输入 · ${cancel} 关闭`), this.theme.fg("border", "─".repeat(width)));
+      ? `${enter} send revision notes · clear text to execute · ${cancel} close without sending`
+      : `↑↓ select · ${enter} confirm · type to revise · ${cancel} close`), this.theme.fg("border", "─".repeat(width)));
     return lines.map(line => truncateToWidth(line, width));
   }
 }
@@ -118,5 +118,5 @@ export async function selectReview(ctx: ExtensionCommandContext, signal: AbortSi
   }
   return ctx.ui.custom<ReviewDecision | undefined>((tui, theme, keys, done) =>
     new ReviewDialog(theme, keys, done, () => tui.requestRender(), signal),
-  { blocked: { kind: "permission", message: "审阅计划或填写修改要求" } });
+  { blocked: { kind: "permission", message: "Review the plan or enter revision notes" } });
 }

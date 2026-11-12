@@ -3,52 +3,52 @@ import { SUBMIT, type PlanRef } from "./state.ts";
 // Original wording. Workflow references and their licenses are recorded in NOTICE.
 export function planPrompt(hasQuestionTool: boolean, draftPath?: string): string {
   return `[PLAN MODE — PLANNING, NOT APPROVED]
-用户正在规划，还没有批准执行。先探测事实，再澄清重要选择，形成供人审阅的完整计划。
-你不能自行退出规划或批准计划。聊天中的“可以”“继续”不是执行批准。
-edit/write（包括嵌套调用）只允许修改当前计划文件；其他文件仍被拦截。Bash、MCP 等保留原有权限，但不能借它们提前实施。
+The user is planning and has not approved execution yet. Inspect the facts first, clarify material choices, and produce a complete plan for human review.
+You cannot exit plan mode or approve the plan yourself. Chat replies such as "OK", "yes", or "continue" do not approve execution.
+edit/write (including nested calls) may only modify the current plan file; all other files remain blocked. Bash, MCP, and other tools keep their existing permissions, but do not use them to implement early.
 ${draftPath
-    ? `当前计划文件：${draftPath}\n围绕这一份当前计划修改。用 read 查看需要修改的内容，再用 edit 做局部修改，或用 write 完整改写。修改后单独调用 ${SUBMIT}({}) 提交文件审阅，不必重发全文。`
-    : `尚无当前计划文件。首次单独调用 ${SUBMIT}({plan: 完整Markdown}) 建立计划；后续修改沿用返回的文件。`}
-重新进入规划不另建草稿。同一任务继续修改原文；若用户明确换了任务，先确认新范围，再改写当前计划并清理旧任务内容。
-为规划探测可以使用现有查询和检查；遵守工作区原有规则，不擅自安装、发布或修改业务数据。
+    ? `Current plan file: ${draftPath}\nRevise this single current plan. Use read to inspect sections, then use edit for targeted updates or write for a full rewrite. After editing, call ${SUBMIT}({}) alone to submit the file for review without resending the full text.`
+    : `No current plan file yet. Call ${SUBMIT}({plan: "complete Markdown"}) alone once to create the plan; later revisions reuse the returned file.`}
+Re-entering plan mode does not create a new draft. Continue editing the existing file for the same task; if the user switches to a different task, confirm the new scope first, then rewrite the current plan and remove outdated task content.
+Use existing read and inspection tools to gather facts; follow workspace rules and do not install packages, publish, or modify business data during planning.
 ${hasQuestionTool
-    ? "需要用户判断时可以使用现有 ask_user_question。是否提问、何时提问由你判断；遵守实际工具 schema，不强制每轮提问。"
-    : "当前没有可用的交互问答工具；需要确认时直接在对话中提问，不调用不存在的工具。"}
-能从环境查到的事实先查。影响范围、验收或方案的重要未知先确认，不藏进默认假设。
+    ? "When a user decision is needed, you may use the existing ask_user_question tool. You decide whether and when to ask; follow the tool schema and do not force a questionnaire every turn."
+    : "No interactive questionnaire tool is available; ask clarifying questions directly in chat and do not call unavailable tools."}
+Verify facts you can check from the environment before asking. Confirm unknowns that affect scope, acceptance criteria, or approach instead of hiding them in default assumptions.
 
-文档开头给能识别任务的标题。计划默认使用五节，语言跟随用户：
-1. 目标与范围：谁遇到什么问题、希望得到什么结果、本次边界。
-2. 验收标准与验证：每项写预期结果、怎么检查、留下什么证据。先确定完成标准，再选择方法。
-3. 执行方案：按行为或阶段写做什么、为什么、先后依赖；对应验收项。避免逐文件清单和无关技术细节。
-4. 假设与停点：仅列重要未证实条件、依据、核实方式和不成立时怎么办。已确认需求不冒充假设。
-5. 交付物与参考：产物、保存位置、接手需要的路径或完整 URL。必要约束仍写在正文。
+Start the document with a clear task title. By default, organize the plan into five sections and match the user's language:
+1. Goals and Scope: Who has what problem, what outcome is needed, and what is in or out of scope.
+2. Acceptance Criteria and Verification: For each item, state the expected result, how to verify it, and what evidence to keep. Define completion criteria before choosing the method.
+3. Execution Plan: Describe what to do, why, and the order of dependencies by behavior or phase, mapped to acceptance items. Avoid file-by-file dumps and unrelated low-level details.
+4. Assumptions and Stop Conditions: List only material unverified conditions, their basis, how to verify them, and what to do if they fail. Do not list confirmed requirements as assumptions.
+5. Deliverables and References: List outputs, locations, and file paths or full URLs needed for handoff. Keep required constraints in the main text.
 
-让没看过原聊天的人也能读懂。每段先给结论，主语明确，解释新术语。简单任务用短段落和少量验收项，不因五节结构堆成长文。
-同一个条件只在一处定义，其他章节引用，不反复复述。短文档不等于省略必要条件。区分用户已确认要求、方案建议和未证实假设。
-区分验收标准与验证方法。不要只写“测试通过”，不要编造数字。没有新增假设就写明，不凑章节内容。
-重要决定都已明确后，检查当前计划内容完整、五节格式一致，再单独调用 ${SUBMIT} 作为本轮最后一个工具。
-这是提交审阅，不是批准。普通讨论可以用文字结束，不必每轮问问题或提交计划。
-收到反馈后修改当前计划文件，旧审批暂不可用。文件中始终保留完整计划，不只写差异；修订完成再提交审阅。无需先询问是否允许再次提案。
-计划和执行交接必须明确：方法可以调整；范围、验收标准或关键假设变化时先暂停确认。
-无法验证的事项标为未验证，不能降低标准来宣布完成。`;
+Write so someone who has not read the chat can understand the plan. Lead each paragraph with its conclusion, use clear subjects, and explain new terms. Keep simple tasks short instead of padding the five sections.
+Define each condition in one place and reference it elsewhere. Distinguish confirmed requirements, proposed approaches, and unverified assumptions.
+Distinguish acceptance criteria from verification methods. Do not write only "tests pass", and do not invent numbers. If there are no new assumptions, state that explicitly.
+Once key decisions are settled, verify that the plan is complete and consistent across all five sections, then call ${SUBMIT} alone as the final tool call of the turn.
+Submitting requests review; it does not approve execution. Ordinary discussion turns may end with plain text without asking a questionnaire or submitting a plan every turn.
+When you receive feedback, update the current plan file while previous approvals remain disabled. Keep the complete plan in the file rather than a diff, then submit for review again without asking permission to re-propose first.
+Both the plan and execution handoff must state: implementation methods may adjust, but pause and confirm first if scope, acceptance criteria, or key assumptions change.
+Mark any item that cannot be verified as unverified; do not lower the completion bar to claim completion.`;
 }
 
 export const offPrompt = `[PLAN MODE — OFF]
-先前的规划限制已结束。遵守现有用户指令、项目规则和权限；旧计划只是参考，不自动授权继续执行。
-只有明确的执行交接请求才要求实施已批准计划。`;
+Previous planning restrictions have ended. Follow current user instructions, project rules, and permissions; earlier plans are for reference only and do not authorize execution by themselves.
+Only an explicit execution handoff request authorizes implementing an approved plan.`;
 
 export function revisionRequest(feedback: string): string {
-  return `请继续修改当前计划，不执行计划中的任务。修改完成后重新提交审阅。\n\n修改要求：\n${feedback}`;
+  return `Please revise the current plan without executing the task. Submit the updated plan for review when ready.\n\nRevision notes:\n${feedback}`;
 }
 
 export function kickoff(ref: PlanRef, body: string, inContext = false): string {
-  return `规划已结束。用户已批准${inContext ? "上下文中的" : "下列"}固定版本，请执行并验证。
-${inContext ? "当前上下文" : "下面"}已包含本次批准计划全文，直接按正文执行；无需重复读取计划文件或再次计算哈希。不要跟随草稿后续修改。
-仅当压缩等原因使正文不在上下文时，才从批准快照恢复：${ref.path}
-恢复校验值（SHA-256）：${ref.hash}
-项目规则、源文件或事实资料仍按需读取；它们不是另一份计划。
-保持现有项目规则和权限。可调整方法；范围、验收标准或关键假设变化时先暂停确认。
-逐项报告预期、实际和证据。验证做不到就标为未验证。不要自行降低标准。
+  return `Plan mode has ended. The user approved the ${inContext ? "frozen version in context" : "frozen version below"}; please execute and verify it.
+The ${inContext ? "current context" : "section below"} already contains the full approved plan; execute it directly without re-reading the plan file or recalculating its hash. Do not follow later draft edits.
+Recover from the approved snapshot only if compaction or context changes remove the plan body: ${ref.path}
+Recovery digest (SHA-256): ${ref.hash}
+Read project rules, source files, or reference materials as needed; they are not a second plan.
+Follow existing project rules and permissions. You may adjust the implementation method, but pause and confirm first if scope, acceptance criteria, or key assumptions change.
+Report expected results, actual results, and evidence for each item. Mark anything you cannot verify as unverified, and do not lower the bar on your own.
 
 ${inContext ? "" : body}`;
 }

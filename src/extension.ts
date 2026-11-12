@@ -30,7 +30,7 @@ export default function planMode(pi: ExtensionAPI) {
     menuAbort?.abort();
   }
   function status(ctx: ExtensionContext) {
-    ctx.ui.setStatus("review-plan", errorState ? "计划状态错误" : state.mode === "ready" ? "计划待确认 · /plan" : planning(state) ? "规划中 · /plan" : undefined);
+    ctx.ui.setStatus("review-plan", errorState ? "Plan state error" : state.mode === "ready" ? "Plan ready · /plan" : planning(state) ? "Planning · /plan" : undefined);
   }
   function save(next: PlanState, ctx: ExtensionContext) {
     pi.appendEntry(STATE, next);
@@ -40,47 +40,47 @@ export default function planMode(pi: ExtensionAPI) {
   const valid = (g: number, s: PlanState, id: string) => generation === g && state === s && sessionId === id;
   function assertUsable(ctx: ExtensionContext) {
     if (errorState) throw new Error(errorState);
-    if (!ctx.isIdle() || ctx.hasPendingMessages()) throw new Error("请等当前工作和排队消息结束后再操作 /plan。");
+    if (!ctx.isIdle() || ctx.hasPendingMessages()) throw new Error("Wait for the current turn and queued messages to finish before running /plan.");
   }
   function begin(ctx: ExtensionContext) {
     assertUsable(ctx);
     invalidate();
     save({ ...emptyState(), workflow: state.workflow ?? randomUUID(), mode: "planning", proposal: state.proposal, approved: state.approved }, ctx);
-    ctx.ui.notify("已进入规划。仅当前计划文件可用 edit/write 修改；其他探测保留。", "info");
+    ctx.ui.notify("Entered plan mode. edit/write may only modify the current plan draft; other inspection tools remain available.", "info");
   }
   function exit(ctx: ExtensionContext) {
     assertUsable(ctx);
     invalidate();
     save({ ...state, mode: "off", pendingRuntime: undefined, pendingKickoff: undefined }, ctx);
-    ctx.ui.notify("已退出规划；计划文件保留，未启动执行。", "info");
+    ctx.ui.notify("Exited plan mode. Plan files are preserved and execution did not start.", "info");
   }
   function display(body: string, ref: PlanRef, label: string) {
     pi.appendEntry(REVIEW, { body, path: ref.path, hash: digest(body), label });
   }
   async function show(ctx: ExtensionContext) {
     const ref = state.proposal ?? state.approved;
-    if (!ref) throw new Error("当前会话没有计划。用 /plan start 开始。");
+    if (!ref) throw new Error("No plan in this session. Run /plan start to begin.");
     const g = generation, s = state, id = sessionId;
     const body = await files.read(ref, ref === state.approved);
-    if (valid(g, s, id)) display(body, ref, state.mode === "ready" ? "待确认计划" : "计划参考（不代表执行授权）");
+    if (valid(g, s, id)) display(body, ref, state.mode === "ready" ? "Plan awaiting approval" : "Plan reference (not an execution approval)");
   }
   async function preflight(ctx: ExtensionContext) {
-    if (!ctx.model) throw new Error("当前未选择模型，不能启动执行。");
-    if (!ctx.modelRegistry.find(ctx.model.provider, ctx.model.id)) throw new Error("当前模型已不可用；未启动执行。");
+    if (!ctx.model) throw new Error("No model selected; cannot start execution.");
+    if (!ctx.modelRegistry.find(ctx.model.provider, ctx.model.id)) throw new Error("Selected model is unavailable; execution did not start.");
     const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-    if (!auth.ok) throw new Error("当前模型认证不可用；未启动执行，也未切换模型。");
+    if (!auth.ok) throw new Error("Model authentication is unavailable; execution did not start and the model was not switched.");
   }
 
   async function approve(ctx: ExtensionCommandContext, body: string, ref: PlanRef, destination: "here" | "fresh", g: number, s: PlanState, id: string) {
     await preflight(ctx);
     if (!valid(g, s, id)) return;
     assertUsable(ctx);
-    if (digest(await files.read(ref)) !== digest(body)) throw new Error("计划在审阅后发生变化。请重新打开 /plan 审阅。");
+    if (digest(await files.read(ref)) !== digest(body)) throw new Error("Plan changed after review started. Open /plan to review again.");
     if (!valid(g, s, id)) return;
     const approved = await files.create(body, "approved");
     if (!valid(g, s, id)) return;
     // Check again after I/O: the document may have changed while the snapshot was written.
-    if (digest(await files.read(ref)) !== digest(body)) throw new Error("计划已变化；本次未批准。请重新审阅。");
+    if (digest(await files.read(ref)) !== digest(body)) throw new Error("Plan changed during approval; not approved. Please review again.");
     if (!valid(g, s, id)) return;
     const model = ctx.model!;
     const runtime = { provider: model.provider, modelId: model.id, thinking: ctx.thinkingLevel ?? pi.getThinkingLevel() };
@@ -106,19 +106,19 @@ export default function planMode(pi: ExtensionAPI) {
           const restored = restoreState(replacement.sessionManager.getBranch());
           if (restored.handoffError || restored.pendingRuntime || replacement.model?.provider !== runtime.provider ||
             replacement.model?.id !== runtime.modelId || replacement.thinkingLevel !== runtime.thinking || replacement.cwd !== cwd) {
-            replacement.ui.notify("新会话已创建，但环境未保持一致，未启动执行。请返回原会话检查。", "error");
+            replacement.ui.notify("Created fresh session, but runtime settings did not match; execution did not start. Return to the parent session to inspect.", "error");
             return;
           }
           try { await replacement.sendUserMessage(request); }
           catch (error) {
             replacement.ui.setEditorText(request);
-            replacement.ui.notify(`交接请求未完成：${String(error)}。请求保留在输入框；不会自动重试。`, "error");
+            replacement.ui.notify(`Handoff request did not finish: ${String(error)}. The request remains in the editor and will not retry automatically.`, "error");
           }
         },
       });
       if (result.cancelled && sessionId === id && state === next) {
         save(s, ctx);
-        ctx.ui.notify("新会话已取消；原计划仍可审批。", "info");
+        ctx.ui.notify("Fresh session cancelled; the plan remains ready for review.", "info");
       }
     } catch (error) {
       if (sessionId === id && state === next) save(s, ctx);
@@ -128,8 +128,8 @@ export default function planMode(pi: ExtensionAPI) {
 
   async function review(ctx: ExtensionCommandContext, destination?: "here" | "fresh") {
     assertUsable(ctx);
-    if (!ctx.hasUI) throw new Error("计划审批需要交互界面；请在终端打开 /plan。");
-    if (state.mode !== "ready" || !state.proposal) throw new Error("没有可审批的完整计划。请先提交或重新提交计划。");
+    if (!ctx.hasUI) throw new Error("Plan approval requires an interactive UI; open /plan in the terminal.");
+    if (state.mode !== "ready" || !state.proposal) throw new Error("No complete plan is ready for approval. Submit or re-submit the plan first.");
     if (reviewing) return;
     reviewing = true;
     autoToken = undefined;
@@ -140,10 +140,10 @@ export default function planMode(pi: ExtensionAPI) {
       const s = state, g = generation, id = sessionId, ref = state.proposal!;
       const body = await files.read(ref);
       if (!valid(g, s, id)) return;
-      display(body, ref, "请审阅目标、验收标准和假设");
+      display(body, ref, "Review goals, acceptance criteria, and assumptions");
       let choice: ReviewDecision | undefined;
       if (destination) {
-        const yes = await ctx.ui.confirm("执行刚展示的计划？", destination === "fresh" ? "保留旧会话，在关联新会话执行。" : "在当前会话执行。", { signal: controller.signal });
+        const yes = await ctx.ui.confirm("Execute the displayed plan?", destination === "fresh" ? "Keep this session and execute in a linked fresh session." : "Execute in the current session.", { signal: controller.signal });
         choice = yes ? { action: destination } : undefined;
       } else {
         choice = await selectReview(ctx, controller.signal);
@@ -154,7 +154,7 @@ export default function planMode(pi: ExtensionAPI) {
         save({ ...state, mode: "planning", pendingKickoff: undefined }, ctx);
         const feedback = choice.feedback?.trim();
         if (feedback) pi.sendUserMessage(revisionRequest(feedback), { deliverAs: "followUp" });
-        else ctx.ui.notify("继续讨论并修改当前计划文件；提交审阅后再审批。", "info");
+        else ctx.ui.notify("Continue discussing and editing the current plan file; submit for review before approving.", "info");
       } else if (choice?.action === "here" || choice?.action === "fresh") {
         await approve(ctx, body, ref, choice.action, g, s, id);
       }
@@ -177,7 +177,7 @@ export default function planMode(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("plan", {
-    description: "规划与审批：/plan [start|show|implement|fresh|exit|export <path>|任务]",
+    description: "Plan and approve: /plan [start|show|implement|fresh|exit|export <path>|task]",
     handler: async (args, ctx) => {
       try {
         const command = args.trim();
@@ -192,11 +192,11 @@ export default function planMode(pi: ExtensionAPI) {
         if (command.startsWith("export ")) {
           assertUsable(ctx);
           const ref = state.proposal ?? state.approved;
-          if (!ref) throw new Error("没有可导出的计划。");
+          if (!ref) throw new Error("No plan available to export.");
           const body = await files.read(ref, ref === state.approved);
           const target = resolve(ctx.cwd, command.slice(7).trim());
           await writeFile(target, body, { flag: "wx", mode: 0o600 });
-          ctx.ui.notify(`已导出：${target}`, "info");
+          ctx.ui.notify(`Exported plan: ${target}`, "info");
           return;
         }
         if (command === "start") return begin(ctx);
@@ -207,13 +207,13 @@ export default function planMode(pi: ExtensionAPI) {
         }
         assertUsable(ctx);
         if (state.mode === "ready") return await review(ctx);
-        if (!ctx.hasUI) throw new Error("/plan 菜单需要交互界面；用 /plan start 开始规划。");
+        if (!ctx.hasUI) throw new Error("The /plan menu requires an interactive UI; use /plan start to enter plan mode.");
         const g = generation, id = sessionId, s = state;
-        const options = planning(state) ? ["查看上一版", "退出规划，保留文件"] : ["开始规划", "查看保留的计划"];
+        const options = planning(state) ? ["Show current plan", "Exit plan mode (keep files)"] : ["Start planning", "Show retained plan"];
         const choice = await ctx.ui.select("Plan Mode", options);
         if (!valid(g, s, id)) return;
-        if (choice === "开始规划") begin(ctx);
-        else if (choice === "退出规划，保留文件") exit(ctx);
+        if (choice === "Start planning") begin(ctx);
+        else if (choice === "Exit plan mode (keep files)") exit(ctx);
         else if (choice) await show(ctx);
       } catch (error) {
         if (!ctx.hasUI) throw error;
@@ -224,7 +224,7 @@ export default function planMode(pi: ExtensionAPI) {
 
   pi.registerTool({
     name: SUBMIT,
-    label: "提交计划",
+    label: "Submit plan",
     exposure: "model-only",
     executionMode: "sequential",
     description: "Submit the current plan file for review with {}. On first submission, supply complete Markdown in plan. Later edits reuse the same file; optional plan replaces its content. Does not approve or execute. Call alone as the final action. Limit: 50,000 UTF-8 bytes.",
@@ -246,14 +246,14 @@ export default function planMode(pi: ExtensionAPI) {
       signal?.throwIfAborted();
       if (!current()) throw new Error("Planning changed during submission. This proposal was not activated.");
       save({ ...state, mode: "ready", proposal: ref, shown: undefined, pendingKickoff: undefined }, ctx);
-      return { content: [{ type: "text" as const, text: `计划已保存，等待用户审批：${ref.path}` }], details: { ref }, terminate: true };
+      return { content: [{ type: "text" as const, text: `Plan saved and awaiting approval: ${ref.path}` }], details: { ref }, terminate: true };
     },
-    renderCall: args => new Text(`提交计划 · ${typeof args.plan === "string" ? titleOf(args.plan) : "当前文件"}`, 0, 0),
+    renderCall: args => new Text(`Submit plan · ${typeof args.plan === "string" ? titleOf(args.plan) : "current file"}`, 0, 0),
     renderResult: result => new Text(result.content.filter(c => c.type === "text").map(c => c.text).join("\n"), 0, 0),
   });
   pi.registerEntryRenderer(REVIEW, entry => {
     const d = entry.data as { body: string; label: string; path: string };
-    return new Markdown(`**${d.label}**\n\n${d.body}\n\n文件：\`${d.path}\``, 0, 0, getMarkdownTheme());
+    return new Markdown(`**${d.label}**\n\n${d.body}\n\nFile: \`${d.path}\``, 0, 0, getMarkdownTheme());
   });
 
   pi.on("tool_call", async (event, ctx) => {
@@ -333,7 +333,7 @@ export default function planMode(pi: ExtensionAPI) {
     if (!unchanged && valid(g, s, id)) {
       invalidate();
       save({ ...s, mode: "planning", shown: undefined, pendingKickoff: undefined }, ctx);
-      ctx.ui.notify("当前草稿已变化或不可读；未恢复旧审批。请检查当前文件并重新提交审阅。", "warning");
+      ctx.ui.notify("Current draft changed or is unreadable; previous approval state was not restored. Inspect the file and submit again.", "warning");
     }
   }
   pi.on("session_start", async (_event, ctx) => {
@@ -348,7 +348,7 @@ export default function planMode(pi: ExtensionAPI) {
         const model = ctx.modelRegistry.find(target.provider, target.modelId);
         let failure: string | undefined;
         try {
-          if (!model || !(await pi.setModel(model))) throw new Error("原模型不可用或未认证");
+          if (!model || !(await pi.setModel(model))) throw new Error("Parent session model is unavailable or unauthenticated");
           pi.setThinkingLevel(target.thinking as Parameters<ExtensionAPI["setThinkingLevel"]>[0]);
         } catch (error) { failure = String(error); }
         save({ ...state, pendingRuntime: undefined, handoffError: failure }, ctx);

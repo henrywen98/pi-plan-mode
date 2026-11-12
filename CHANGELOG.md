@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Reuse a single editable `.draft.md` file across revisions and re-entry.
+- Add inline revision feedback directly inside the TUI approval menu.
+- Deduplicate approved plan text in context during same-session handoff.
+- Use English by default for TUI menus, status, notifications, and prompts.
+- Add English primary `README.md`, Chinese `README.zh-CN.md`, and public npm package metadata.
+
 ## 0.1.0
 
 - Add acceptance-first planning with explicit review and approval.

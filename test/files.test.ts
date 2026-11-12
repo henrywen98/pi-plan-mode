@@ -41,11 +41,11 @@ test("state is branch-local and rejects unsupported versions", () => {
 });
 test("acceptance-first prompt leaves question timing to the model and preserves authority", () => {
   const prompt = planPrompt(true);
-  assert.ok(prompt.indexOf("2. 验收") < prompt.indexOf("3. 执行"));
-  assert.match(prompt, /何时提问由你判断/);
-  assert.match(prompt, /无法验证.*未验证/);
-  assert.match(prompt, /关键假设变化时先暂停确认/);
-  assert.doesNotMatch(planPrompt(false), /使用现有 ask_user_question/);
+  assert.ok(prompt.indexOf("2. Acceptance") < prompt.indexOf("3. Execution"));
+  assert.match(prompt, /decide whether and when to ask/);
+  assert.match(prompt, /cannot be verified as unverified/);
+  assert.match(prompt, /key assumptions change/);
+  assert.doesNotMatch(planPrompt(false), /use the existing ask_user_question/);
   const ref = { id: "test", path: "/plan.md", hash: digest("fixed"), title: "fixed" };
-  assert.match(kickoff(ref, "fixed"), /不要跟随草稿后续修改/);
+  assert.match(kickoff(ref, "fixed"), /Do not follow later draft edits/);
 });

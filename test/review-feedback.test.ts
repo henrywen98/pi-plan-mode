@@ -47,8 +47,8 @@ test("review feedback: inline text dispatches once and updates the same plan wit
     assert.equal(h.state().approved, undefined);
     const messages = h.session.messages.filter((m: any) => m.role === "user" && asText(m).includes(feedback));
     assert.equal(messages.length, 1);
-    assert.match(asText(messages[0]), /继续修改当前计划/);
-    assert.match(asText(messages[0]), /不执行/);
+    assert.match(asText(messages[0]), /Please revise the current plan/);
+    assert.match(asText(messages[0]), /without executing/);
   } finally { await h.close(); }
 });
 
@@ -81,7 +81,7 @@ test("review feedback: pasted execution text remains feedback, not a new approva
     assert.equal(h.state().approved!.id, approved.id);
     assert.equal(h.session.sessionManager.getBranch().filter((e: any) => e.customType === "review-plan-handoff-v1").length, markers);
     const user = h.session.messages.findLast((m: any) => m.role === "user");
-    assert.ok(asText(user).startsWith("请继续修改当前计划，不执行"));
+    assert.ok(asText(user).startsWith("Please revise the current plan without executing"));
   } finally { await h.close(); }
 });
 

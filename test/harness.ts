@@ -69,8 +69,8 @@ export async function harness(extra: ExtensionFactory[] = []) {
       return select(items);
     },
     custom: async () => {
-      const items = ["当前会话执行", "清空上下文后执行", "继续修改"];
-      menus.push({ title: "批准这一版计划？Esc 仅关闭", items });
+      const items = ["Execute in current session", "Execute in fresh session", "Revise"];
+      menus.push({ title: "Approve this plan? Esc closes", items });
       const choice = await select(items);
       if (!choice) return undefined;
       const feedback = reviewFeedback;

@@ -35,7 +35,7 @@ export default function fixture(pi: ExtensionAPI) {
     ctx.ui.notify("OFFLINE_KICKOFF_BLOCK_ARMED", "info");
   } });
   pi.on("input", (event, ctx) => {
-    if (blockKickoff && event.source === "extension" && event.text.startsWith("规划已结束")) {
+    if (blockKickoff && event.source === "extension" && event.text.startsWith("Plan mode has ended.")) {
       blockKickoff = false;
       ctx.ui.notify("OFFLINE_KICKOFF_BLOCKED", "info");
       return { action: "handled" };
@@ -75,8 +75,8 @@ export default function fixture(pi: ExtensionAPI) {
         else if (last.toolName === "read" && !last.isError && query.includes("inline-feedback")) content = tool("plan_submit", {});
         else if (last.toolName === "edit" && !last.isError && query.includes("reviseplan")) content = tool("plan_submit", {});
         else if (last.toolName === "write" && !last.isError) content = tool("read", { path: "result.txt" });
-        else content = [{ type: "text", text: query.startsWith("规划已结束") ? "EXECUTION_COMPLETE" : "QUESTION_COMPLETE" }];
-      } else if (query.startsWith("规划已结束")) content = tool("write", { path: "result.txt", content: "OK" });
+        else content = [{ type: "text", text: query.startsWith("Plan mode has ended.") ? "EXECUTION_COMPLETE" : "QUESTION_COMPLETE" }];
+      } else if (query.startsWith("Plan mode has ended.")) content = tool("write", { path: "result.txt", content: "OK" });
       else if (query.includes("show question")) content = tool("ask_user_question", { questions: [{ header: "Choice", question: "Which output should we use?", options: [{ label: "Alpha", description: "Use the first example." }, { label: "Beta", description: "Use the second example." }] }] });
       else if (query.includes("inline-feedback") && currentPlan) content = tool("edit", { path: currentPlan, edits: [{ oldText: "文件内容必须是 OK。", newText: "文件内容必须是 OK，并保留逐项核对记录。" }] });
       else if (query.includes("reviseplan") && currentPlan) content = tool("edit", { path: currentPlan, edits: [{ oldText: "# 离线测试计划", newText: "# 离线修订计划" }] });

@@ -54,7 +54,7 @@ test("submit, cancel, feedback and resubmit; no accidental approval or repeated 
     assert.equal(h.state().mode, "planning");
     await h.prompt("/plan implement");
     assert.equal(h.state().approved, undefined);
-    assert.ok(h.notices.some(n => /没有可审批/.test(n.message)));
+    assert.ok(h.notices.some(n => /No complete plan is ready for approval/.test(n.message)));
     await submit(h);
     assert.equal(h.menus.length, 2);
     assert.equal(h.state().proposal!.path, path, "Revisions reuse the current plan file.");
@@ -115,7 +115,7 @@ test("changes during review prevent approval", async () => {
     await h.prompt("/plan");
     assert.equal(h.state().mode, "ready");
     assert.equal(h.state().approved, undefined);
-    assert.ok(h.notices.some(n => /发生变化/.test(n.message)), JSON.stringify(h.notices));
+    assert.ok(h.notices.some(n => /Plan changed/.test(n.message)), JSON.stringify(h.notices));
   } finally { await h.close(); }
 });
 
@@ -245,7 +245,7 @@ test("runtime mismatch after replacement stops kickoff", async () => {
     const count = h.requests.length;
     h.confirm(true); await h.prompt("/plan fresh");
     assert.equal(h.requests.length, count);
-    assert.ok(h.notices.some(n => /环境未保持一致/.test(n.message)));
+    assert.ok(h.notices.some(n => /runtime settings did not match/.test(n.message)));
   } finally { await h.close(); }
 });
 
