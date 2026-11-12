@@ -2,12 +2,13 @@
 
 **先审目标和验收标准，再批准执行。支持代码、文档、调研及其他任务。**
 
-[English](./README.md) | 简体中文
+[English](https://github.com/henrywen98/pi-plan-mode/blob/main/README.md) | 简体中文
 
 [![npm](https://img.shields.io/npm/v/@henrywen98/pi-plan-mode)](https://www.npmjs.com/package/@henrywen98/pi-plan-mode)
 [![Pi Catalog](https://img.shields.io/badge/Pi_Catalog-pi--plan--mode-blue)](https://pi.dev/packages/@henrywen98/pi-plan-mode)
+[![CI](https://github.com/henrywen98/pi-plan-mode/actions/workflows/ci.yml/badge.svg)](https://github.com/henrywen98/pi-plan-mode/actions/workflows/ci.yml)
 [![Pi Version](https://img.shields.io/badge/Pi-%3E%3D1.5.0-blue)](https://pi.dev)
-[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](./LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](../LICENSE)
 
 `pi-plan-mode` 为 [Pi](https://github.com/earendil-works/pi) 提供以验收标准为先的 `/plan` 规划与审批流程。模型改动业务文件前，你可以先确认目标、验收标准和关键假设。计划正文自动跟随你的对话语言（中文或英文）。
 
@@ -207,4 +208,4 @@ pi remove /absolute/path/to/pi-plan-mode
 
 独立实现，采用 Apache-2.0。流程参考 Codex、OpenCode、Claude Code 及现有 Pi 规划插件。
 
-参考版本和具体借鉴范围见 [NOTICE](NOTICE)。没有打包上游实现源码。
+参考版本和具体借鉴范围见 [NOTICE](../NOTICE)。没有打包上游实现源码。

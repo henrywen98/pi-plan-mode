@@ -2,10 +2,11 @@
 
 **Review goals and acceptance criteria before Pi executes your task.**
 
-English | [简体中文](./README.zh-CN.md)
+English | [简体中文](https://github.com/henrywen98/pi-plan-mode/blob/main/docs/README.zh-CN.md)
 
 [![npm](https://img.shields.io/npm/v/@henrywen98/pi-plan-mode)](https://www.npmjs.com/package/@henrywen98/pi-plan-mode)
 [![Pi Catalog](https://img.shields.io/badge/Pi_Catalog-pi--plan--mode-blue)](https://pi.dev/packages/@henrywen98/pi-plan-mode)
+[![CI](https://github.com/henrywen98/pi-plan-mode/actions/workflows/ci.yml/badge.svg)](https://github.com/henrywen98/pi-plan-mode/actions/workflows/ci.yml)
 [![Pi Version](https://img.shields.io/badge/Pi-%3E%3D1.5.0-blue)](https://pi.dev)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](./LICENSE)
 

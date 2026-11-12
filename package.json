@@ -1,6 +1,6 @@
 {
   "name": "@henrywen98/pi-plan-mode",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Acceptance-first /plan workflow for Pi: single editable draft, immutable approval snapshots, inline review feedback, and deduplicated session handoff.",
   "license": "Apache-2.0",
@@ -27,7 +27,6 @@
     "index.ts",
     "src",
     "README.md",
-    "README.zh-CN.md",
     "NOTICE",
     "LICENSE",
     "CHANGELOG.md"

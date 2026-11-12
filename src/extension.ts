@@ -57,7 +57,7 @@ export default function planMode(pi: ExtensionAPI) {
   function display(body: string, ref: PlanRef, label: string) {
     pi.appendEntry(REVIEW, { body, path: ref.path, hash: digest(body), label });
   }
-  async function show(ctx: ExtensionContext) {
+  async function show() {
     const ref = state.proposal ?? state.approved;
     if (!ref) throw new Error("No plan in this session. Run /plan start to begin.");
     const g = generation, s = state, id = sessionId;
@@ -186,7 +186,7 @@ export default function planMode(pi: ExtensionAPI) {
           autoToken = undefined;
           return await review(ctx);
         }
-        if (command === "show") return await show(ctx);
+        if (command === "show") return await show();
         if (command === "exit" || command === "off") return exit(ctx);
         if (command === "implement" || command === "fresh") return await review(ctx, command === "fresh" ? "fresh" : "here");
         if (command.startsWith("export ")) {
@@ -214,7 +214,7 @@ export default function planMode(pi: ExtensionAPI) {
         if (!valid(g, s, id)) return;
         if (choice === "Start planning") begin(ctx);
         else if (choice === "Exit plan mode (keep files)") exit(ctx);
-        else if (choice) await show(ctx);
+        else if (choice) await show();
       } catch (error) {
         if (!ctx.hasUI) throw error;
         try { ctx.ui.notify(String(error instanceof Error ? error.message : error), "error"); } catch { /* replaced context */ }

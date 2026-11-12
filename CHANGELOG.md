@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Ship only the English primary `README.md` in the npm root (`docs/README.zh-CN.md` on GitHub) so npmjs.com and pi.dev both render English by default.
+- Document `pi install npm:@henrywen98/pi-plan-mode` and add GitHub Actions CI.
+
 ## 0.2.0
 
 - Reuse a single editable `.draft.md` file across revisions and re-entry.
